@@ -1,4 +1,5 @@
 name: mirror
+run-name: mirror-${{ inputs.task_id }}
 
 on:
   workflow_dispatch:

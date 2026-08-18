@@ -40,7 +40,7 @@ def trigger_workflow(source: str, tag: str, arch: str, target: str, task_id: str
 
 
 def recent_runs(per_page: int = 10) -> list[dict]:
-    """查询 mirror workflow 最近 N 次 run（含 run 详情，用于读取 inputs.task_id）。"""
+    """查询 mirror workflow 最近 N 次 run。run 的 name 即 mirror-<task_id>（见 workflow 的 run-name）。"""
     url = f"{API}/repos/{config.GITHUB_REPO}/actions/workflows/mirror.yml/runs"
     params = {"per_page": per_page}
     try:
@@ -51,17 +51,4 @@ def recent_runs(per_page: int = 10) -> list[dict]:
     if resp.status_code != 200:
         return []
     return resp.json().get("workflow_runs", [])
-
-
-def run_detail(run_id: int) -> dict | None:
-    """查询单次 run 详情（含 inputs 字段）。run 列表端点不返回 inputs，需单独取详情。"""
-    url = f"{API}/repos/{config.GITHUB_REPO}/actions/runs/{run_id}"
-    try:
-        with httpx.Client(timeout=20) as client:
-            resp = client.get(url, headers=_headers())
-    except httpx.HTTPError:
-        return None
-    if resp.status_code != 200:
-        return None
-    return resp.json()
 

@@ -61,10 +61,8 @@ class TaskQueue:
         running = db.find_tasks_by_status("running")
         if not running:
             return
-        # 查最近若干次 run，逐一匹配 task_id（run 列表不含 inputs，需取详情）
+        # run 名形如 mirror-<task_id>（见 workflow 的 run-name），从列表 API 即可拿到，无需逐个查详情
         runs = github_client.recent_runs(per_page=max(10, len(running) * 2))
-        if not runs:
-            return
         pending_ids = {t["id"] for t in running}
         for run in runs:
             if not pending_ids:
@@ -72,10 +70,8 @@ class TaskQueue:
             conclusion = run.get("conclusion")
             if not conclusion:
                 continue  # 还在进行中
-            detail = github_client.run_detail(run["id"])
-            if not detail:
-                continue
-            run_task_id = (detail.get("inputs") or {}).get("task_id")
+            name = run.get("name", "")
+            run_task_id = name[len("mirror-"):] if name.startswith("mirror-") else ""
             if run_task_id in pending_ids:
                 status = "done" if conclusion == "success" else "failed"
                 error = None if conclusion == "success" else f"workflow {conclusion}"
