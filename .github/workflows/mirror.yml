@@ -1,0 +1,39 @@
+name: mirror
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: '源镜像完整地址（含 registry）'
+        required: true
+      tag:
+        description: '镜像 tag'
+        required: true
+        default: 'latest'
+      arch:
+        description: '架构'
+        required: true
+        default: 'amd64'
+      target:
+        description: '目标镜像完整地址'
+        required: true
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 登录华为云 SWR
+        run: |
+          echo "${{ secrets.SWR_PASSWORD }}" | docker login "${{ secrets.SWR_REGISTRY }}" -u "${{ secrets.SWR_USER }}" --password-stdin
+
+      - name: 拉取源镜像
+        run: |
+          docker pull --platform linux/${{ github.event.inputs.arch }} ${{ github.event.inputs.source }}:${{ github.event.inputs.tag }}
+
+      - name: 打标签
+        run: |
+          docker tag ${{ github.event.inputs.source }}:${{ github.event.inputs.tag }} ${{ github.event.inputs.target }}
+
+      - name: 推送目标镜像
+        run: |
+          docker push ${{ github.event.inputs.target }}
