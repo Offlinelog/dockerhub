@@ -117,6 +117,13 @@ async def get_task(task_id: str):
     return task
 
 
+@app.get("/api/tasks")
+async def list_tasks(limit: int = 20, offset: int = 0):
+    limit = max(1, min(limit, 100))  # 分页上限，防无界查询
+    offset = max(0, offset)
+    return db.list_tasks(limit=limit, offset=offset)
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}

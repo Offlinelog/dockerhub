@@ -28,6 +28,25 @@
     .cmd-box { background: #111827; color: #e5e7eb; padding: 14px; border-radius: 8px; font-family: monospace; font-size: 14px; overflow-x: auto; position: relative; }
     .copy { position: absolute; right: 10px; top: 10px; background: #374151; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
     .hint { margin-top: 12px; color: #6b7280; font-size: 13px; }
+    .history { margin-top: 32px; }
+    .history h2 { font-size: 18px; margin-bottom: 12px; }
+    .history-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 10px 14px; background: #f9fafb; color: #6b7280; font-weight: 600; white-space: nowrap; }
+    td { padding: 10px 14px; border-top: 1px solid #f3f4f6; vertical-align: top; }
+    .img-name { font-family: monospace; font-size: 12px; word-break: break-all; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .badge.pending { background: #f3f4f6; color: #6b7280; }
+    .badge.running { background: #eff6ff; color: #1d4ed8; }
+    .badge.done { background: #f0fdf4; color: #16a34a; }
+    .badge.failed { background: #fef2f2; color: #dc2626; }
+    .pull-cmd { font-family: monospace; font-size: 12px; word-break: break-all; cursor: pointer; }
+    .pull-cmd:hover { color: #2563eb; }
+    .pull-cmd.copied::after { content: ' ✓'; color: #16a34a; }
+    .err-text { color: #dc2626; font-size: 12px; max-width: 260px; word-break: break-all; }
+    .history-foot { padding: 10px 14px; text-align: center; font-size: 13px; color: #6b7280; }
+    .history-foot button { background: none; border: none; color: #2563eb; cursor: pointer; font-size: 13px; padding: 4px 8px; }
+    .empty-row td { text-align: center; color: #9ca3af; padding: 24px; }
   </style>
 </head>
 <body>
@@ -55,6 +74,19 @@
         <button class="copy" id="copy">复制</button>
       </div>
       <div class="hint" id="hint"></div>
+    </div>
+
+    <div class="history">
+      <h2>任务记录</h2>
+      <div class="history-card">
+        <table>
+          <thead>
+            <tr><th>镜像</th><th>架构</th><th>状态</th><th>国内拉取命令</th><th>时间</th><th>错误</th></tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+        <div class="history-foot" id="historyFoot"></div>
+      </div>
     </div>
   </div>
 
@@ -116,10 +148,12 @@
           cmdBox.style.display = 'block';
           hint.textContent = '已推送到华为云 SWR，国内可直接拉取。';
           go.disabled = false;
+          loadHistory(true);
         } else {
           statusEl.className = 'status failed';
           statusEl.textContent = '搬运失败: ' + (data.error || '未知错误');
           go.disabled = false;
+          loadHistory(true);
         }
       } catch (e) {
         statusEl.className = 'status failed';
@@ -147,6 +181,86 @@
         setTimeout(() => copy.textContent = '复制', 1500);
       }
     });
+
+    // ===== 任务记录 =====
+    const historyBody = document.getElementById('historyBody');
+    const historyFoot = document.getElementById('historyFoot');
+    const PAGE_SIZE = 20;
+    let historyOffset = 0;
+    let historyTimer = null;
+
+    const STATUS_TEXT = { pending: '排队中', running: '搬运中', done: '完成', failed: '失败' };
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleString('zh-CN', { hour12: false });
+    }
+
+    async function loadHistory(reset) {
+      if (reset) historyOffset = 0;
+      try {
+        const resp = await fetch('/api/tasks?limit=' + PAGE_SIZE + '&offset=' + historyOffset);
+        const tasks = await resp.json();
+        if (!Array.isArray(tasks)) return;
+        if (reset) historyBody.innerHTML = '';
+        if (!tasks.length && historyOffset === 0) {
+          historyBody.innerHTML = '<tr class="empty-row"><td colspan="6">暂无任务记录</td></tr>';
+          historyFoot.innerHTML = '';
+          return;
+        }
+        for (const t of tasks) {
+          const tr = document.createElement('tr');
+          const pull = t.status === 'done' && t.pull_command
+            ? '<span class="pull-cmd" data-cmd="docker pull ' + esc(t.pull_command) + '" title="点击复制">docker pull ' + esc(t.pull_command) + '</span>'
+            : '<span style="color:#9ca3af">—</span>';
+          tr.innerHTML =
+            '<td class="img-name">' + esc(t.source + ':' + t.tag) + '</td>' +
+            '<td>' + esc(t.arch) + '</td>' +
+            '<td><span class="badge ' + esc(t.status) + '">' + (STATUS_TEXT[t.status] || t.status) + '</span></td>' +
+            '<td>' + pull + '</td>' +
+            '<td style="white-space:nowrap">' + fmtTime(t.created_at) + '</td>' +
+            '<td class="err-text">' + esc(t.error || '') + '</td>';
+          historyBody.appendChild(tr);
+        }
+        historyOffset += tasks.length;
+        historyFoot.innerHTML = tasks.length === PAGE_SIZE
+          ? '<button id="loadMore">加载更多</button>'
+          : '';
+        const loadMore = document.getElementById('loadMore');
+        if (loadMore) loadMore.addEventListener('click', () => loadHistory(false));
+        // 有进行中的任务时自动刷新
+        clearTimeout(historyTimer);
+        if (tasks.some(t => t.status === 'pending' || t.status === 'running')) {
+          historyTimer = setTimeout(() => loadHistory(true), 5000);
+        }
+      } catch (e) { /* 网络异常时下轮轮询重试 */ }
+    }
+
+    historyBody.addEventListener('click', async e => {
+      const el = e.target.closest('.pull-cmd');
+      if (!el) return;
+      try {
+        await navigator.clipboard.writeText(el.dataset.cmd);
+      } catch (err) {
+        const range = document.createRange();
+        range.selectNode(el);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('copy');
+      }
+      el.classList.add('copied');
+      setTimeout(() => el.classList.remove('copied'), 1500);
+    });
+
+    loadHistory(true);
   </script>
 </body>
 </html>

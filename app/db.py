@@ -59,6 +59,16 @@ def find_tasks_by_status(status: str) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def list_tasks(limit: int = 20, offset: int = 0) -> list[dict]:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT id, source, tag, arch, status, pull_command, error, created_at, updated_at "
+            "FROM tasks ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def update_task_status(task_id: str, status: str, error: str | None = None) -> None:
     with _conn() as conn:
         conn.execute(
