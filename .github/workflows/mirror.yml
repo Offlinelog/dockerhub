@@ -17,6 +17,9 @@ on:
       target:
         description: '目标镜像完整地址'
         required: true
+      task_id:
+        description: '后端任务 ID（用于状态回写匹配，workflow 内不使用）'
+        required: true
 
 jobs:
   mirror:
