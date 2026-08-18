@@ -341,13 +341,20 @@
       return document.querySelector('input[name=arch]:checked').value;
     }
 
-    // 非 docker.io 时补 registry 前缀（用户已写则不重复）
+    // 非 docker.io 时补 registry 前缀；用户已写前缀（含重复粘贴）则去重
     function buildImage() {
-      const raw = imageInput.value.trim();
+      const raw = imageInput.value.trim().replace(/\s+/g, '');
       const reg = registrySel.value;
       if (!raw) return '';
       if (reg === 'docker.io') return raw;
-      return raw.startsWith(reg + '/') ? raw : reg + '/' + raw;
+      // 连续粘贴多次前缀也只保留一份：ghcr.io/ghcr.io/x → ghcr.io/x
+      const double = reg + '/' + reg + '/';
+      let path = raw.startsWith(reg + '/')
+        ? raw.slice(reg.length + 1)
+        : raw;
+      // 防御极端情况：路径开头仍带重复前缀再剥一层
+      if (path.startsWith(reg + '/')) path = path.slice(reg.length + 1);
+      return reg + '/' + path;
     }
 
     async function submit() {
@@ -444,12 +451,18 @@
       return d.innerHTML;
     }
 
-    // docker.io/library/nginx → nginx；docker.io/user/img → user/img；其他 registry 保留全名
+    // 剥掉 registry 前缀，只留路径部分（registry 灰显前缀由 regPrefix 单独加）
+    // docker.io/library/nginx → nginx；ghcr.io/anomalyco/opencode → anomalyco/opencode
     function shortName(source) {
       if (!source) return '';
       let s = source;
-      if (s.startsWith('docker.io/library/')) return s.slice('docker.io/library/'.length);
-      if (s.startsWith('docker.io/')) return s.slice('docker.io/'.length);
+      const slash = s.indexOf('/');
+      if (slash > 0) {
+        const head = s.slice(0, slash);
+        // registry 段含 . 或 :（端口），剥掉第一个组件
+        if (head.includes('.') || head.includes(':')) s = s.slice(slash + 1);
+      }
+      if (s.startsWith('library/')) s = s.slice('library/'.length);
       return s;
     }
 
