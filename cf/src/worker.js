@@ -20,6 +20,10 @@ export default {
       return handleList(url, env);
     }
 
+    if (path === "/api/stats" && request.method === "GET") {
+      return handleStats(env);
+    }
+
     const taskMatch = path.match(/^\/api\/tasks\/([a-f0-9]+)$/);
     if (taskMatch) {
       return handleGetTask(taskMatch[1], env, ctx);
@@ -234,6 +238,36 @@ async function handleList(url, env) {
 
   const { results } = await env.DB.prepare(sql).bind(...params).all();
   return json(results);
+}
+
+// ========== GET /api/stats ==========
+// 与本地 db.stats() 同构：GROUP BY status 计数 + created_at >= date('now') 计今日。
+// created_at 为 ISO UTC（new Date().toISOString()），前缀比较等价 UTC 当日，
+// 且可走 idx_tasks_created 范围扫描。
+async function handleStats(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT status, COUNT(*) AS c FROM tasks GROUP BY status"
+  ).all();
+  const todayRow = await env.DB.prepare(
+    "SELECT COUNT(*) AS c FROM tasks WHERE created_at >= date('now')"
+  ).first();
+  const counts = {};
+  let total = 0;
+  for (const r of results || []) {
+    counts[r.status] = r.c;
+    total += r.c;
+  }
+  const done = counts.done || 0;
+  const successRate = total ? Math.round((done * 100) / total) : 0;
+  return json({
+    total,
+    done,
+    failed: counts.failed || 0,
+    running: counts.running || 0,
+    pending: counts.pending || 0,
+    today: todayRow ? todayRow.c : 0,
+    success_rate: successRate,
+  });
 }
 
 // ========== 工具 ==========

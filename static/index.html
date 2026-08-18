@@ -207,6 +207,47 @@
       font-size: 12.5px; padding: 6px 14px; border-radius: 8px;
     }
     .history-foot button:hover { background: #eef2ff; }
+
+    /* ---- 统计横幅 ---- */
+    .stats-strip {
+      max-width: 1360px; margin: 20px auto 0; padding: 0 32px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+    }
+    .stat {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 18px; display: flex; flex-direction: column; gap: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: all .15s;
+    }
+    .stat:hover { border-color: #c7d2fe; box-shadow: 0 4px 14px rgba(99,102,241,.12); }
+    .stat-num { font-size: 22px; font-weight: 700; line-height: 1.2; }
+    .stat-num.accent { color: var(--primary); }
+    .stat-num.ok { color: #059669; }
+    .stat-label { font-size: 12px; color: var(--text-3); }
+    @media (max-width: 960px) { .stats-strip { grid-template-columns: repeat(2, 1fr); } }
+
+    /* ---- 通用卡片标题 ---- */
+    .card-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text-2); }
+
+    /* ---- 常用镜像 chips ---- */
+    .chips-card { padding: 18px 24px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      background: #f3f4f6; border: 1px solid var(--border); border-radius: 999px;
+      padding: 6px 14px; font-size: 12.5px; font-family: ui-monospace, monospace;
+      color: var(--text-2); cursor: pointer; transition: all .15s;
+    }
+    .chip:hover { background: #eef2ff; border-color: #c7d2fe; color: var(--primary); transform: translateY(-1px); }
+
+    /* ---- 页脚 ---- */
+    .footer {
+      border-top: 1px solid var(--border); margin-top: 28px;
+      padding: 18px 32px 36px; text-align: center; font-size: 12px; color: var(--text-3);
+    }
+    .footer span + span { margin-left: 10px; }
+    .footer code {
+      background: #f3f4f6; padding: 1px 6px; border-radius: 5px;
+      font-size: 11.5px; font-family: ui-monospace, monospace; color: var(--primary);
+    }
   </style>
 </head>
 <body>
@@ -216,6 +257,13 @@
     </div>
     <div class="title">Docker 镜像搬运</div>
     <div class="badge-line">海外 GitHub Actions 拉取 → 推送 <b>华为云 SWR</b> → 国内直达</div>
+  </div>
+
+  <div class="stats-strip">
+    <div class="stat"><span class="stat-num accent" id="statTotal">-</span><span class="stat-label">累计搬运</span></div>
+    <div class="stat"><span class="stat-num ok" id="statDone">-</span><span class="stat-label">已完成</span></div>
+    <div class="stat"><span class="stat-num" id="statToday">-</span><span class="stat-label">今日</span></div>
+    <div class="stat"><span class="stat-num" id="statRate">-</span><span class="stat-label">成功率</span></div>
   </div>
 
   <div class="layout">
@@ -247,6 +295,11 @@
         </div>
 
         <button class="go" id="go"><span id="goText">开始搬运</span></button>
+      </div>
+
+      <div class="card chips-card">
+        <h3 class="card-title">常用镜像 · 点击填充</h3>
+        <div class="chips" id="chips"></div>
       </div>
 
       <div class="card result-card" id="resultCard">
@@ -294,6 +347,11 @@
       <div class="history-foot" id="historyFoot"></div>
     </div>
   </div>
+
+  <footer class="footer">
+    <span>按需搬运站 · 完成的镜像推送至华为云 SWR，国内可直接 <code>docker pull</code></span>
+    <span>海外 GitHub Actions 拉取 · 本服务不存储任何仓库凭证</span>
+  </footer>
 
   <script>
     // ===== 元素 =====
@@ -501,6 +559,8 @@
           historyBody.appendChild(tr);
         }
         historyOffset += tasks.length;
+        // 搬运完成后刷新统计横幅
+        loadStats();
         historyCount.textContent = '已加载 ' + historyOffset + ' 条';
         historyFoot.innerHTML = tasks.length === PAGE_SIZE ? '<button id="loadMore">加载更多</button>' : '';
         const loadMore = document.getElementById('loadMore');
@@ -539,6 +599,57 @@
       searchBox.classList.remove('has-text');
       loadHistory(true);
       searchInput.focus();
+    });
+
+    // ===== 统计横幅 =====
+    const statTotal = document.getElementById('statTotal');
+    const statDone = document.getElementById('statDone');
+    const statToday = document.getElementById('statToday');
+    const statRate = document.getElementById('statRate');
+
+    async function loadStats() {
+      try {
+        const resp = await fetch('/api/stats');
+        if (!resp.ok) return;
+        const s = await resp.json();
+        statTotal.textContent = s.total;
+        statDone.textContent = s.done;
+        statToday.textContent = s.today;
+        statRate.textContent = s.success_rate + '%';
+      } catch (e) { /* 静默：后端未就绪时横幅保留占位符 */ }
+    }
+    loadStats();
+
+    // ===== 常用镜像快捷填充 =====
+    const POPULAR = [
+      { reg: 'docker.io', img: 'nginx', label: 'nginx' },
+      { reg: 'docker.io', img: 'redis', label: 'redis' },
+      { reg: 'docker.io', img: 'mysql', label: 'mysql' },
+      { reg: 'docker.io', img: 'postgres', label: 'postgres' },
+      { reg: 'docker.io', img: 'node', label: 'node' },
+      { reg: 'docker.io', img: 'python', label: 'python' },
+      { reg: 'docker.io', img: 'golang', label: 'golang' },
+      { reg: 'docker.io', img: 'alpine', label: 'alpine' },
+      { reg: 'docker.io', img: 'busybox', label: 'busybox' },
+      { reg: 'docker.io', img: 'mongo', label: 'mongo' },
+      { reg: 'registry.k8s.io', img: 'pause', label: 'k8s pause' },
+      { reg: 'ghcr.io', img: 'owner/image', label: 'ghcr 示例' },
+    ];
+    const chipsEl = document.getElementById('chips');
+    function prefillImage(reg, img) {
+      registrySel.value = reg;
+      syncPlaceholder();
+      imageInput.value = img;
+      imageInput.focus();
+    }
+    POPULAR.forEach(p => {
+      const b = document.createElement('button');
+      b.className = 'chip';
+      b.type = 'button';
+      b.textContent = p.label;
+      b.title = p.reg + '/' + p.img;
+      b.addEventListener('click', () => prefillImage(p.reg, p.img));
+      chipsEl.appendChild(b);
     });
 
     loadHistory(true);

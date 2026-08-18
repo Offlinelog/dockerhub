@@ -130,4 +130,9 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/stats")
+async def stats():
+    return db.stats()
+
+
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
