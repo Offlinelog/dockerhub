@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Docker Hub 镜像搬运</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6f8; color: #1f2937; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 26px; margin-bottom: 8px; }
+    .sub { color: #6b7280; margin-bottom: 32px; font-size: 14px; }
+    .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    input[type=text] { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; font-family: monospace; }
+    .row { display: flex; gap: 12px; margin-top: 16px; }
+    button { flex: 1; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; font-weight: 600; }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .arch { display: flex; gap: 16px; margin-top: 16px; align-items: center; font-size: 14px; }
+    .arch label { margin: 0; font-weight: 500; cursor: pointer; }
+    .arch input { margin-right: 6px; }
+    .result { margin-top: 24px; display: none; }
+    .result.show { display: block; }
+    .status { font-size: 14px; margin-bottom: 12px; padding: 10px; border-radius: 8px; background: #eff6ff; color: #1d4ed8; }
+    .status.done { background: #f0fdf4; color: #16a34a; }
+    .status.failed { background: #fef2f2; color: #dc2626; }
+    .cmd-box { background: #111827; color: #e5e7eb; padding: 14px; border-radius: 8px; font-family: monospace; font-size: 14px; overflow-x: auto; position: relative; }
+    .copy { position: absolute; right: 10px; top: 10px; background: #374151; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+    .hint { margin-top: 12px; color: #6b7280; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Docker Hub 镜像搬运</h1>
+    <p class="sub">输入 Docker Hub 镜像名，搬运到华为云 SWR 后返回国内拉取命令</p>
+
+    <div class="card">
+      <label for="image">镜像名</label>
+      <input type="text" id="image" placeholder="nginx:latest  或  redis:7-alpine  或  用户名/镜像:tag">
+      <div class="arch">
+        <span>架构：</span>
+        <label><input type="radio" name="arch" value="amd64" checked> amd64</label>
+        <label><input type="radio" name="arch" value="arm64"> arm64</label>
+      </div>
+      <div class="row">
+        <button id="go">开始搬运</button>
+      </div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="status" id="status">任务已提交，等待中…</div>
+      <div class="cmd-box" id="cmdBox" style="display:none;">
+        <span id="cmd"></span>
+        <button class="copy" id="copy">复制</button>
+      </div>
+      <div class="hint" id="hint"></div>
+    </div>
+  </div>
+
+  <script>
+    const go = document.getElementById('go');
+    const image = document.getElementById('image');
+    const statusEl = document.getElementById('status');
+    const resultEl = document.getElementById('result');
+    const cmdBox = document.getElementById('cmdBox');
+    const cmd = document.getElementById('cmd');
+    const hint = document.getElementById('hint');
+    const copy = document.getElementById('copy');
+
+    let pollTimer = null;
+
+    function getArch() {
+      return document.querySelector('input[name=arch]:checked').value;
+    }
+
+    async function submit() {
+      const img = image.value.trim();
+      if (!img) { alert('请输入镜像名'); return; }
+      go.disabled = true;
+      statusEl.className = 'status';
+      statusEl.textContent = '提交中…';
+      resultEl.classList.add('show');
+      cmdBox.style.display = 'none';
+      hint.textContent = '';
+
+      try {
+        const resp = await fetch('/api/mirror', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: img, arch: getArch() })
+        });
+        const data = await resp.json();
+        if (!resp.ok) { throw new Error(data.detail || '提交失败'); }
+        statusEl.textContent = '任务已提交，搬运中…';
+        poll(data.task_id);
+      } catch (e) {
+        statusEl.className = 'status failed';
+        statusEl.textContent = '错误: ' + e.message;
+        go.disabled = false;
+      }
+    }
+
+    async function poll(taskId) {
+      if (pollTimer) clearTimeout(pollTimer);
+      try {
+        const resp = await fetch('/api/tasks/' + taskId);
+        const data = await resp.json();
+        if (data.status === 'running' || data.status === 'pending') {
+          statusEl.textContent = '搬运中…（海外拉取 + 推送到 SWR，大镜像需几分钟）';
+          pollTimer = setTimeout(() => poll(taskId), 5000);
+        } else if (data.status === 'done') {
+          statusEl.className = 'status done';
+          statusEl.textContent = '搬运完成！';
+          cmd.textContent = 'docker pull ' + data.pull_command;
+          cmdBox.style.display = 'block';
+          hint.textContent = '已推送到华为云 SWR，国内可直接拉取。';
+          go.disabled = false;
+        } else {
+          statusEl.className = 'status failed';
+          statusEl.textContent = '搬运失败: ' + (data.error || '未知错误');
+          go.disabled = false;
+        }
+      } catch (e) {
+        statusEl.className = 'status failed';
+        statusEl.textContent = '查询失败: ' + e.message;
+        go.disabled = false;
+      }
+    }
+
+    go.addEventListener('click', submit);
+    image.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(cmd.textContent);
+        copy.textContent = '已复制';
+        setTimeout(() => copy.textContent = '复制', 1500);
+      } catch (e) {
+        const range = document.createRange();
+        range.selectNode(cmd);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('copy');
+        copy.textContent = '已复制';
+        setTimeout(() => copy.textContent = '复制', 1500);
+      }
+    });
+  </script>
+</body>
+</html>
