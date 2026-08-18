@@ -87,6 +87,8 @@ async function triggerWorkflow(env, source, tag, arch, target, taskId) {
   const headers = {
     Authorization: `Bearer ${env.GITHUB_TOKEN}`,
     Accept: "application/vnd.github+json",
+    "Content-Type": "application/json",
+    "User-Agent": "docker-mirror-worker",  // GitHub API 强制要求 UA，Workers fetch 默认不带
     "X-GitHub-Api-Version": "2022-11-28",
   };
   const payload = {
@@ -100,8 +102,10 @@ async function triggerWorkflow(env, source, tag, arch, target, taskId) {
       body: JSON.stringify(payload),
     });
     if (resp.status === 204) return { ok: true };
-    const text = await resp.text();
-    return { ok: false, err: `GitHub API ${resp.status}: ${text.slice(0, 300)}` };
+    const text = (await resp.text()).slice(0, 300);
+    const respType = resp.headers.get("content-type") || "no-content-type";
+    console.error(`dispatch failed: status=${resp.status} type=${respType} body=${text}`);
+    return { ok: false, err: `GitHub API ${resp.status} (${respType}): ${text || "(empty body)"}` };
   } catch (e) {
     return { ok: false, err: `GitHub API 请求失败: ${e.message}` };
   }
@@ -113,6 +117,7 @@ async function recentRuns(env, perPage = 10) {
   const headers = {
     Authorization: `Bearer ${env.GITHUB_TOKEN}`,
     Accept: "application/vnd.github+json",
+    "User-Agent": "docker-mirror-worker",
     "X-GitHub-Api-Version": "2022-11-28",
   };
   try {
