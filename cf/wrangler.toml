@@ -1,0 +1,25 @@
+name = "docker-mirror"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+# 绑定 D1 数据库（创建后填 binding 名 db）
+[[d1_databases]]
+binding = "DB"
+database_name = "mirror-db"
+database_id = "4e99334e-b456-4fc1-b69c-75d48c715d0d"
+
+# 静态前端（Assets 绑定，Workers 原生支持）
+[assets]
+directory = "../static"
+binding = "ASSETS"
+
+# 域名路由（部署后在 Cloudflare Dashboard 绑，或在此配置）
+# routes = [{ pattern = "mirror.yourdomain.com/*", custom_domain = true }]
+
+# GITHUB_TOKEN 用 wrangler secret put GITHUB_TOKEN 设置，不写在这里
+# GITHUB_REPO / SWR_REGISTRY / SWR_NAMESPACE 用 vars（非敏感）
+[vars]
+GITHUB_REPO = "Offlinelog/dockerhub"
+GITHUB_REF = "main"
+SWR_REGISTRY = "swr.cn-east-3.myhuaweicloud.com"
+SWR_NAMESPACE = "cloud-gt3k"
