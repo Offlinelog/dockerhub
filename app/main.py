@@ -118,10 +118,11 @@ async def get_task(task_id: str):
 
 
 @app.get("/api/tasks")
-async def list_tasks(limit: int = 20, offset: int = 0):
+async def list_tasks(limit: int = 20, offset: int = 0, search: str = ""):
     limit = max(1, min(limit, 100))  # 分页上限，防无界查询
     offset = max(0, offset)
-    return db.list_tasks(limit=limit, offset=offset)
+    search = search.strip()[:100]  # 长度上限，防超长输入
+    return db.list_tasks(limit=limit, offset=offset, search=search)
 
 
 @app.get("/api/health")

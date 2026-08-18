@@ -59,13 +59,22 @@ def find_tasks_by_status(status: str) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def list_tasks(limit: int = 20, offset: int = 0) -> list[dict]:
+def list_tasks(limit: int = 20, offset: int = 0, search: str = "") -> list[dict]:
+    sql = (
+        "SELECT id, source, tag, arch, status, pull_command, error, created_at, updated_at "
+        "FROM tasks"
+    )
+    params: list = []
+    if search:
+        # 仅接受字母数字及常用分隔符，防 LIKE 通配符注入；tag/source 各匹配一次
+        safe = search.replace("%", "").replace("_", "")
+        sql += " WHERE source LIKE ? ESCAPE '\\' OR tag LIKE ? ESCAPE '\\'"
+        like = f"%{safe}%"
+        params = [like, like]
+    sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    params += [limit, offset]
     with _conn() as conn:
-        rows = conn.execute(
-            "SELECT id, source, tag, arch, status, pull_command, error, created_at, updated_at "
-            "FROM tasks ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (limit, offset),
-        ).fetchall()
+        rows = conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
 

@@ -6,94 +6,106 @@
   <title>Docker 镜像搬运</title>
   <style>
     :root {
-      --bg: #f6f7fb;
+      --bg: #f4f5fa;
       --card: #ffffff;
       --border: #e5e7eb;
       --text: #111827;
       --text-2: #6b7280;
       --text-3: #9ca3af;
       --primary: #4f46e5;
-      --primary-dark: #4338ca;
       --code-bg: #0f172a;
-      --code-text: #e2e8f0;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
+      background: var(--bg); color: var(--text); min-height: 100vh;
     }
-    .wrap { max-width: 780px; margin: 0 auto; padding: 48px 20px 80px; }
 
-    /* ---- 头部 ---- */
-    header { text-align: center; margin-bottom: 36px; }
-    .logo {
-      width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 16px;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    /* ---- 顶栏 ---- */
+    .topbar {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 0 32px; height: 64px;
+      display: flex; align-items: center; gap: 14px;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .topbar .logo {
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 8px 24px rgba(99, 102, 241, .35);
+      box-shadow: 0 4px 12px rgba(99,102,241,.35);
     }
-    .logo svg { width: 30px; height: 30px; fill: #fff; }
-    h1 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 8px; }
-    .sub { color: var(--text-2); font-size: 15px; }
+    .topbar .logo svg { width: 20px; height: 20px; fill: #fff; }
+    .topbar .title { font-size: 17px; font-weight: 700; }
+    .topbar .badge-line { font-size: 12px; color: var(--text-3); margin-left: auto; white-space: nowrap; }
+    .topbar .badge-line b { color: var(--primary); font-weight: 600; }
 
-    /* ---- 表单卡片 ---- */
-    .card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 16px; padding: 28px;
-      box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.04);
+    /* ---- 布局 ---- */
+    .layout {
+      max-width: 1360px; margin: 0 auto; padding: 28px 32px 64px;
+      display: grid; grid-template-columns: 420px 1fr; gap: 24px;
+      align-items: start;
     }
+    @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+
+    .col-left { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 92px; }
+    @media (max-width: 960px) { .col-left { position: static; } }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+
+    /* ---- 表单 ---- */
+    .form-card { padding: 24px; }
     .field-label { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
-    .field-label label { font-size: 14px; font-weight: 600; }
+    .field-label label { font-size: 13px; font-weight: 600; }
     .field-label .eg { font-size: 12px; color: var(--text-3); font-family: ui-monospace, monospace; }
 
     .input-group { display: flex; }
     .input-group select {
-      width: 172px; padding: 0 12px; border: 1.5px solid var(--border); border-right: none;
+      width: 168px; padding: 0 10px; border: 1.5px solid var(--border); border-right: none;
       border-radius: 10px 0 0 10px; background: #f9fafb; color: var(--text);
-      font-size: 13px; font-family: ui-monospace, monospace; cursor: pointer; outline: none;
+      font-size: 12.5px; font-family: ui-monospace, monospace; cursor: pointer; outline: none;
     }
     .input-group select:focus { border-color: var(--primary); }
     .input-group input {
-      flex: 1; padding: 13px 14px; border: 1.5px solid var(--border);
-      border-radius: 0 10px 10px 0; font-size: 15px; font-family: ui-monospace, monospace; outline: none;
-      min-width: 0;
+      flex: 1; padding: 12px 14px; border: 1.5px solid var(--border);
+      border-radius: 0 10px 10px 0; font-size: 14px; font-family: ui-monospace, monospace;
+      outline: none; min-width: 0;
     }
     .input-group input:focus { border-color: var(--primary); }
     .input-group input::placeholder { color: var(--text-3); }
 
-    .opts { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; flex-wrap: wrap; gap: 12px; }
-    .seg { display: inline-flex; background: #f3f4f6; border-radius: 10px; padding: 3px; }
+    .opts { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+    .seg { display: inline-flex; background: #f3f4f6; border-radius: 9px; padding: 3px; }
     .seg label {
-      padding: 7px 18px; font-size: 13px; font-weight: 500; color: var(--text-2);
-      border-radius: 8px; cursor: pointer; transition: all .15s;
+      padding: 6px 16px; font-size: 12.5px; font-weight: 500; color: var(--text-2);
+      border-radius: 7px; cursor: pointer; transition: all .15s;
     }
     .seg input { display: none; }
-    .seg input:checked + span { color: #fff; }
     .seg label:has(input:checked) { background: var(--primary); color: #fff; box-shadow: 0 1px 4px rgba(79,70,229,.4); }
-    .opts-hint { font-size: 12px; color: var(--text-3); }
 
     .go {
-      width: 100%; margin-top: 20px; padding: 14px; border: none; border-radius: 12px;
+      width: 100%; margin-top: 18px; padding: 13px; border: none; border-radius: 11px;
       background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
-      font-size: 15px; font-weight: 600; cursor: pointer; letter-spacing: .02em;
-      transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 8px;
+      font-size: 14.5px; font-weight: 600; cursor: pointer;
+      transition: all .15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
     .go:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(99,102,241,.4); }
     .go:disabled { opacity: .6; cursor: not-allowed; }
     .spinner {
-      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4);
+      width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4);
       border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ---- 结果区 ---- */
-    .result { margin-top: 20px; display: none; }
-    .result.show { display: block; }
+    /* ---- 当前任务结果 ---- */
+    .result-card { padding: 20px 24px; display: none; }
+    .result-card.show { display: block; }
     .status-bar {
       display: flex; align-items: center; gap: 10px;
-      font-size: 14px; padding: 13px 16px; border-radius: 12px; border: 1px solid;
+      font-size: 13.5px; padding: 11px 14px; border-radius: 10px; border: 1px solid;
     }
     .status-bar .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .status-bar.pending { background: #f9fafb; border-color: var(--border); color: var(--text-2); }
@@ -104,136 +116,183 @@
     .status-bar.done .dot { background: #10b981; }
     .status-bar.failed { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
     .status-bar.failed .dot { background: #ef4444; }
-    @keyframes pulse { 50% { opacity: .35; } }
+    @keyframes pulse { 50% { opacity: .3; } }
 
     .cmd-box {
-      margin-top: 12px; background: var(--code-bg); border-radius: 12px; padding: 16px 56px 16px 16px;
-      font-family: ui-monospace, monospace; font-size: 13.5px; color: var(--code-text);
+      margin-top: 12px; background: var(--code-bg); border-radius: 10px; padding: 14px 72px 14px 14px;
+      font-family: ui-monospace, monospace; font-size: 12.5px; color: #e2e8f0;
       overflow-x: auto; position: relative; white-space: nowrap;
     }
     .cmd-box .prefix { color: #7dd3fc; }
     .copy-btn {
-      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-      background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 8px;
-      padding: 5px 10px; font-size: 12px; cursor: pointer; transition: all .15s;
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 7px;
+      padding: 4px 9px; font-size: 11.5px; cursor: pointer;
     }
     .copy-btn:hover { color: #fff; border-color: #64748b; }
-    .hint { margin-top: 10px; color: var(--text-3); font-size: 13px; }
+    .hint { margin-top: 9px; color: var(--text-3); font-size: 12px; }
 
-    /* ---- 任务记录 ---- */
-    .history { margin-top: 40px; }
-    .history-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-    .history-head h2 { font-size: 17px; font-weight: 700; }
-    .history-head .count { font-size: 13px; color: var(--text-3); }
-    .history-card {
-      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-      overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    /* ---- 使用说明 ---- */
+    .tips-card { padding: 18px 24px; }
+    .tips-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--text-2); }
+    .tips-card ol { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+    .tips-card li { font-size: 12.5px; color: var(--text-2); line-height: 1.6; }
+    .tips-card code {
+      background: #f3f4f6; padding: 1px 6px; border-radius: 5px;
+      font-size: 11.5px; font-family: ui-monospace, monospace; color: var(--primary);
     }
+
+    /* ---- 右栏：任务记录 ---- */
+    .panel-head {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      padding: 16px 24px; border-bottom: 1px solid var(--border);
+    }
+    .panel-head h2 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+    .search-box { flex: 1; min-width: 180px; position: relative; }
+    .search-box input {
+      width: 100%; padding: 8px 30px 8px 32px; border: 1.5px solid var(--border);
+      border-radius: 9px; font-size: 13px; outline: none; background: #fafbfc;
+      font-family: ui-monospace, monospace;
+    }
+    .search-box input:focus { border-color: var(--primary); background: #fff; }
+    .search-box .search-icon {
+      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      width: 14px; height: 14px; color: var(--text-3); pointer-events: none;
+    }
+    .search-box .clear-btn {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--text-3); cursor: pointer;
+      font-size: 15px; padding: 2px 5px; border-radius: 5px; display: none; line-height: 1;
+    }
+    .search-box .clear-btn:hover { color: var(--text); background: #f3f4f6; }
+    .search-box.has-text .clear-btn { display: block; }
+    .panel-head .count { font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
     .table-scroll { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    col.c-img { width: 24%; } col.c-arch { width: 70px; } col.c-status { width: 90px; }
+    col.c-pull { width: 34%; } col.c-time { width: 150px; } col.c-err { width: 16%; }
     th {
-      text-align: left; padding: 11px 16px; background: #fafbfc; color: var(--text-3);
-      font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+      text-align: left; padding: 10px 16px; background: #fafbfc; color: var(--text-3);
+      font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em;
       border-bottom: 1px solid var(--border); white-space: nowrap;
     }
-    td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; overflow: hidden; }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:hover { background: #fafbff; }
-    .img-cell { font-family: ui-monospace, monospace; font-size: 12.5px; word-break: break-all; max-width: 260px; }
+    .img-cell { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
     .img-cell .reg { color: var(--text-3); }
-    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
-    .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+      border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap;
+    }
+    .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
     .badge.pending { background: #f3f4f6; color: #6b7280; } .badge.pending::before { background: #9ca3af; }
     .badge.running { background: #eef2ff; color: #4338ca; } .badge.running::before { background: #6366f1; animation: pulse 1.2s ease-in-out infinite; }
     .badge.done { background: #ecfdf5; color: #047857; } .badge.done::before { background: #10b981; }
     .badge.failed { background: #fef2f2; color: #b91c1c; } .badge.failed::before { background: #ef4444; }
-    .pull-cell { font-family: ui-monospace, monospace; font-size: 12px; color: var(--primary); cursor: pointer; word-break: break-all; max-width: 300px; }
+    .pull-cell {
+      font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--primary);
+      cursor: pointer; word-break: break-all; display: block;
+    }
     .pull-cell:hover { text-decoration: underline; }
     .pull-cell.copied { color: #059669; }
     .pull-cell.copied::after { content: ' 已复制'; }
     .dim { color: var(--text-3); }
     .time-cell { white-space: nowrap; color: var(--text-2); font-size: 12px; }
-    .err-cell { color: #dc2626; font-size: 12px; max-width: 200px; word-break: break-all; }
-    .empty { text-align: center; color: var(--text-3); padding: 36px 0 !important; }
-    .history-foot { padding: 10px; text-align: center; }
+    .err-cell { color: #dc2626; font-size: 11.5px; word-break: break-all; }
+    .empty { text-align: center; color: var(--text-3); padding: 48px 0 !important; font-size: 13px; }
+    .history-foot { padding: 8px; text-align: center; border-top: 1px solid #f3f4f6; }
     .history-foot button {
       background: none; border: none; color: var(--primary); cursor: pointer;
-      font-size: 13px; padding: 6px 12px; border-radius: 8px;
+      font-size: 12.5px; padding: 6px 14px; border-radius: 8px;
     }
     .history-foot button:hover { background: #eef2ff; }
-
-    footer { margin-top: 48px; text-align: center; color: var(--text-3); font-size: 12px; line-height: 1.8; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="logo">
-        <svg viewBox="0 0 24 24"><path d="M13.98 11.08h2.12a.19.19 0 0 0 .19-.19V8.99a.19.19 0 0 0-.19-.19h-2.12a.19.19 0 0 0-.19.19v1.9c0 .11.09.19.19.19zm-3.21-2.28H8.65a.19.19 0 0 0-.19.19v1.9c0 .1.09.19.19.19h2.12a.19.19 0 0 0 .19-.19V8.99a.19.19 0 0 0-.19-.19zm0 4.42H8.65a.19.19 0 0 0-.19.19v1.9c0 .1.09.19.19.19h2.12a.19.19 0 0 0 .19-.19v-1.9a.19.19 0 0 0-.19-.19zm3.21 0h-2.12a.19.19 0 0 0-.19.19v1.9c0 .1.09.19.19.19h2.12a.19.19 0 0 0 .19-.19v-1.9a.19.19 0 0 0-.19-.19zm6.51-1.4c-.03-.18-.2-.83-.3-1.11-.21-.63-.53-1.09-.96-1.44-.73-.62-1.49-.71-2.24-.71H6.98c-.75 0-1.51.09-2.24.71-.43.35-.75.81-.96 1.44-.1.28-.27.93-.3 1.11-.06.42-.08.95-.08 1.42 0 .47.02 1 .08 1.42.03.18.2.83.3 1.11.21.63.53 1.09.96 1.44.73.62 1.49.71 2.24.71h10.01c.75 0 1.51-.09 2.24-.71.43-.35.75-.81.96-1.44.1-.28.27-.93.3-1.11.06-.42.08-.95.08-1.42 0-.47-.02-1-.08-1.42zm-1.51 2.71c-.14.72-.37 1.04-.67 1.29-.38.32-.8.4-1.5.4H6.98c-.7 0-1.12-.08-1.5-.4-.3-.25-.53-.57-.67-1.29-.09-.46-.11-1-.11-1.29s.02-.83.11-1.29c.14-.72.37-1.04.67-1.29.38-.32.8-.4 1.5-.4h9.83c.7 0 1.12.08 1.5.4.3.25.53.57.67 1.29.09.46.11 1 .11 1.29s-.02.83-.11 1.29zm-2.4-1.31h-2.12a.19.19 0 0 0-.19.19v1.9c0 .1.09.19.19.19h2.12a.19.19 0 0 0 .19-.19v-1.9a.19.19 0 0 0-.19-.19z"/></svg>
-      </div>
-      <h1>Docker 镜像搬运</h1>
-      <p class="sub">海外加速拉取 · 推送到华为云 SWR · 国内直达</p>
-    </header>
+  <div class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M13.98 11.08h2.12a.19.19 0 0 0 .19-.19V8.99a.19.19 0 0 0-.19-.19h-2.12a.19.19 0 0 0-.19.19v1.9c0 .11.09.19.19.19zm-3.21-2.28H8.65a.19.19 0 0 0-.19.19v1.9c0 .1.09.19.19.19h2.12a.19.19 0 0 0 .19-.19V8.99a.19.19 0 0 0-.19-.19zm0 4.42H8.65a.19.19 0 0 0-.19.19v1.9c0 .1.09.19.19.19h2.12a.19.19 0 0 0 .19-.19v-1.9a.19.19 0 0 0-.19-.19zm3.21 0h-2.12a.19.19 0 0 0-.19.19v1.9c0 .1.09.19.19.19h2.12a.19.19 0 0 0 .19-.19v-1.9a.19.19 0 0 0-.19-.19zm6.51-1.4c-.03-.18-.2-.83-.3-1.11-.21-.63-.53-1.09-.96-1.44-.73-.62-1.49-.71-2.24-.71H6.98c-.75 0-1.51.09-2.24.71-.43.35-.75.81-.96 1.44-.1.28-.27.93-.3 1.11-.06.42-.08.95-.08 1.42 0 .47.02 1 .08 1.42.03.18.2.83.3 1.11.21.63.53 1.09.96 1.44.73.62 1.49.71 2.24.71h10.01c.75 0 1.51-.09 2.24-.71.43-.35.75-.81.96-1.44.1-.28.27-.93.3-1.11.06-.42.08-.95.08-1.42 0-.47-.02-1-.08-1.42zm-1.51 2.71c-.14.72-.37 1.04-.67 1.29-.38.32-.8.4-1.5.4H6.98c-.7 0-1.12-.08-1.5-.4-.3-.25-.53-.57-.67-1.29-.09-.46-.11-1-.11-1.29s.02-.83.11-1.29c.14-.72.37-1.04.67-1.29.38-.32.8-.4 1.5-.4h9.83c.7 0 1.12.08 1.5.4.3.25.53.57.67 1.29.09.46.11 1 .11 1.29s-.02.83-.11 1.29zm-2.4-1.31h-2.12a.19.19 0 0 0-.19.19v1.9c0 .1.09.19.19.19h2.12a.19.19 0 0 0 .19-.19v-1.9a.19.19 0 0 0-.19-.19z"/></svg>
+    </div>
+    <div class="title">Docker 镜像搬运</div>
+    <div class="badge-line">海外 GitHub Actions 拉取 → 推送 <b>华为云 SWR</b> → 国内直达</div>
+  </div>
 
-    <div class="card">
-      <div class="field-label">
-        <label>源镜像</label>
-        <span class="eg" id="eg"></span>
-      </div>
-      <div class="input-group">
-        <select id="registry">
-          <option value="docker.io" selected>docker.io</option>
-          <option value="ghcr.io">ghcr.io</option>
-          <option value="quay.io">quay.io</option>
-          <option value="registry.k8s.io">registry.k8s.io</option>
-          <option value="gcr.io">gcr.io</option>
-          <option value="k8s.m.daocloud.io">k8s.m.daocloud.io</option>
-        </select>
-        <input type="text" id="image" placeholder="nginx:latest" autofocus>
-      </div>
-
-      <div class="opts">
-        <div class="seg">
-          <label><input type="radio" name="arch" value="amd64" checked><span>amd64</span></label>
-          <label><input type="radio" name="arch" value="arm64"><span>arm64</span></label>
+  <div class="layout">
+    <!-- 左栏 -->
+    <div class="col-left">
+      <div class="card form-card">
+        <div class="field-label">
+          <label>源镜像</label>
+          <span class="eg" id="eg"></span>
         </div>
-        <span class="opts-hint">搬运约 1~3 分钟，取决于镜像大小</span>
+        <div class="input-group">
+          <select id="registry">
+            <option value="docker.io" selected>docker.io</option>
+            <option value="ghcr.io">ghcr.io</option>
+            <option value="quay.io">quay.io</option>
+            <option value="registry.k8s.io">registry.k8s.io</option>
+            <option value="gcr.io">gcr.io</option>
+            <option value="k8s.m.daocloud.io">k8s.m.daocloud.io</option>
+          </select>
+          <input type="text" id="image" placeholder="nginx:latest" autofocus>
+        </div>
+
+        <div class="opts">
+          <div class="seg">
+            <label><input type="radio" name="arch" value="amd64" checked>amd64</label>
+            <label><input type="radio" name="arch" value="arm64">arm64</label>
+          </div>
+          <span style="font-size:12px;color:var(--text-3)">约 1~3 分钟</span>
+        </div>
+
+        <button class="go" id="go"><span id="goText">开始搬运</span></button>
       </div>
 
-      <button class="go" id="go"><span id="goText">开始搬运</span></button>
-    </div>
-
-    <div class="result" id="result">
-      <div class="status-bar pending" id="statusBar"><span class="dot"></span><span id="statusText">任务已提交…</span></div>
-      <div class="cmd-box" id="cmdBox" style="display:none">
-        <span class="prefix">docker pull</span> <span id="cmd"></span>
-        <button class="copy-btn" id="copy">复制</button>
+      <div class="card result-card" id="resultCard">
+        <div class="status-bar pending" id="statusBar"><span class="dot"></span><span id="statusText">任务已提交…</span></div>
+        <div class="cmd-box" id="cmdBox" style="display:none">
+          <span class="prefix">docker pull</span> <span id="cmd"></span>
+          <button class="copy-btn" id="copy">复制</button>
+        </div>
+        <div class="hint" id="hint"></div>
       </div>
-      <div class="hint" id="hint"></div>
+
+      <div class="card tips-card">
+        <h3>使用说明</h3>
+        <ol>
+          <li>选择源 registry，输入镜像名（可带 tag，默认 <code>latest</code>）</li>
+          <li>点击「开始搬运」，海外 runner 自动拉取并推送 SWR</li>
+          <li>完成后点击拉取命令即可复制，国内无需 <code>docker login</code></li>
+        </ol>
+      </div>
     </div>
 
-    <div class="history">
-      <div class="history-head">
+    <!-- 右栏：任务记录 -->
+    <div class="card">
+      <div class="panel-head">
         <h2>任务记录</h2>
+        <div class="search-box" id="searchBox">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="text" id="searchInput" placeholder="搜索镜像名或 tag…">
+          <button class="clear-btn" id="searchClear" title="清空">×</button>
+        </div>
         <span class="count" id="historyCount"></span>
       </div>
-      <div class="history-card">
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr><th>镜像</th><th>架构</th><th>状态</th><th>国内拉取命令</th><th>时间</th><th>错误</th></tr>
-            </thead>
-            <tbody id="historyBody"></tbody>
-          </table>
-        </div>
-        <div class="history-foot" id="historyFoot"></div>
+      <div class="table-scroll">
+        <table>
+          <colgroup>
+            <col class="c-img"><col class="c-arch"><col class="c-status">
+            <col class="c-pull"><col class="c-time"><col class="c-err">
+          </colgroup>
+          <thead>
+            <tr><th>镜像</th><th>架构</th><th>状态</th><th>国内拉取命令</th><th>时间</th><th>错误</th></tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
       </div>
+      <div class="history-foot" id="historyFoot"></div>
     </div>
-
-    <footer>
-      源镜像从海外 GitHub Actions 拉取，推送到华为云 SWR（华东-上海一）<br>
-      拉取无需登录 · 组织公开 · 仅供学习交流
-    </footer>
   </div>
 
   <script>
@@ -243,7 +302,7 @@
     const eg = document.getElementById('eg');
     const go = document.getElementById('go');
     const goText = document.getElementById('goText');
-    const resultEl = document.getElementById('result');
+    const resultCard = document.getElementById('resultCard');
     const statusBar = document.getElementById('statusBar');
     const statusText = document.getElementById('statusText');
     const cmdBox = document.getElementById('cmdBox');
@@ -282,7 +341,7 @@
       return document.querySelector('input[name=arch]:checked').value;
     }
 
-    // 拼接完整镜像名：非 docker.io 时补 registry 前缀（用户已写前缀则不重复）
+    // 非 docker.io 时补 registry 前缀（用户已写则不重复）
     function buildImage() {
       const raw = imageInput.value.trim();
       const reg = registrySel.value;
@@ -298,7 +357,7 @@
       goText.textContent = '提交中…';
       statusBar.className = 'status-bar pending';
       statusText.textContent = '任务已提交，排队中…';
-      resultEl.classList.add('show');
+      resultCard.classList.add('show');
       cmdBox.style.display = 'none';
       hint.textContent = '';
       try {
@@ -331,7 +390,7 @@
         const data = await resp.json();
         if (data.status === 'running' || data.status === 'pending') {
           statusBar.className = 'status-bar running';
-          statusText.textContent = '海外拉取 + 推送 SWR 中，约 1~3 分钟…';
+          statusText.textContent = '海外拉取 + 推送 SWR 中…';
           pollTimer = setTimeout(() => poll(taskId), 5000);
         } else if (data.status === 'done') {
           statusBar.className = 'status-bar done';
@@ -401,13 +460,14 @@
 
     async function loadHistory(reset) {
       if (reset) historyOffset = 0;
+      const q = searchInput.value.trim();
       try {
-        const resp = await fetch('/api/tasks?limit=' + PAGE_SIZE + '&offset=' + historyOffset);
+        const resp = await fetch('/api/tasks?limit=' + PAGE_SIZE + '&offset=' + historyOffset + (q ? '&search=' + encodeURIComponent(q) : ''));
         const tasks = await resp.json();
         if (!Array.isArray(tasks)) return;
         if (reset) historyBody.innerHTML = '';
         if (!tasks.length && historyOffset === 0) {
-          historyBody.innerHTML = '<tr><td colspan="6" class="empty">暂无任务记录，输入镜像名开始第一次搬运</td></tr>';
+          historyBody.innerHTML = '<tr><td colspan="6" class="empty">' + (q ? '没有匹配「' + esc(q) + '」的任务' : '暂无任务记录，左侧输入镜像名开始第一次搬运') + '</td></tr>';
           historyCount.textContent = '';
           historyFoot.innerHTML = '';
           return;
@@ -424,7 +484,7 @@
             '<td><span class="badge ' + esc(t.status) + '">' + (STATUS_TEXT[t.status] || t.status) + '</span></td>' +
             '<td>' + pull + '</td>' +
             '<td class="time-cell">' + fmtTime(t.created_at) + '</td>' +
-            '<td class="err-cell">' + esc(t.error || '') + '</td>';
+            '<td class="err-cell" title="' + esc(t.error || '') + '">' + esc(t.error || '') + '</td>';
           historyBody.appendChild(tr);
         }
         historyOffset += tasks.length;
@@ -445,6 +505,27 @@
       copyText(el.dataset.cmd, null);
       el.classList.add('copied');
       setTimeout(() => el.classList.remove('copied'), 1500);
+    });
+
+    // ===== 搜索 =====
+    const searchInput = document.getElementById('searchInput');
+    const searchBox = document.getElementById('searchBox');
+    const searchClear = document.getElementById('searchClear');
+    let searchTimer = null;
+
+    searchInput.addEventListener('input', () => {
+      searchBox.classList.toggle('has-text', !!searchInput.value);
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => loadHistory(true), 400);  // 防抖
+    });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { clearTimeout(searchTimer); loadHistory(true); }
+    });
+    searchClear.addEventListener('click', () => {
+      searchInput.value = '';
+      searchBox.classList.remove('has-text');
+      loadHistory(true);
+      searchInput.focus();
     });
 
     loadHistory(true);
