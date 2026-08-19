@@ -17,6 +17,9 @@ export default {
     }
 
     if (path === "/api/tasks" && request.method === "GET") {
+      // 列表请求顺带批量回写进行中任务：提交后若标签页关掉，/api/tasks/:id 不再被轮询，
+      // 单个任务的懒回写就断了，任务会永远卡 running。列表每 5s 自动刷新，借此兜底。
+      ctx.waitUntil(syncRunningTasks(env));
       return handleList(url, env);
     }
 
@@ -214,6 +217,33 @@ async function syncTaskStatus(env, taskId) {
         "UPDATE tasks SET status = ?, error = ?, updated_at = ? WHERE id = ? AND status IN ('pending','running')"
       ).bind(status, error, now, taskId).run();
       break;
+    }
+  }
+}
+
+// 批量回写所有 pending/running 任务：一次 recentRuns 拉最近 50 个 run，逐个匹配。
+// 触发点 GET /api/tasks（列表）——兜底「提交后标签页关掉、/api/tasks/:id 不再被轮询」导致任务卡 running 的场景。
+// 无进行中任务时早退，不调 GitHub；UPDATE 带 status IN ('pending','running') 防并发覆盖终态。
+async function syncRunningTasks(env) {
+  const { results: pending } = await env.DB.prepare(
+    "SELECT id FROM tasks WHERE status IN ('pending','running')"
+  ).all();
+  if (!pending || !pending.length) return;
+  const ids = new Set(pending.map((r) => r.id));
+  const runs = await recentRuns(env, 50);
+  const now = new Date().toISOString();
+  for (const run of runs) {
+    const conclusion = run.conclusion;
+    if (!conclusion) continue; // 进行中
+    const name = run.name || "";
+    const runTaskId = name.startsWith("mirror-") ? name.slice("mirror-".length) : "";
+    if (ids.has(runTaskId)) {
+      const status = conclusion === "success" ? "done" : "failed";
+      const error = conclusion === "success" ? null : `workflow ${conclusion}`;
+      await env.DB.prepare(
+        "UPDATE tasks SET status = ?, error = ?, updated_at = ? WHERE id = ? AND status IN ('pending','running')"
+      ).bind(status, error, now, runTaskId).run();
+      ids.delete(runTaskId);
     }
   }
 }
